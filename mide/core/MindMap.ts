@@ -28,8 +28,8 @@ export class MindMap {
     this.currentNode = reactive(this.root);
     this.draw = SVG().size(selector.clientWidth, selector.clientHeight).addTo(selector);
     // 计算中心位置放置root节点
-    const centerX = this._selector.clientWidth / 2;
-    const centerY = this._selector.clientHeight / 2;
+    const centerX = (this._selector.clientWidth) / 2  - 300;
+    const centerY = (this._selector.clientHeight) / 2 - 100;
     // 递归遍历每个节点的子节点
     this.renderNode(this.root, centerX, centerY);
   }
@@ -42,8 +42,8 @@ export class MindMap {
    */
   renderNode(node: MindMapNode, parentX: number, parentY: number) {
     // 计算子节点的位置
-    const childX = parentX + 100;
-    const childY = parentY + 50;
+    const childX = parentX + 150;
+    const childY = parentY;
     // 绘制子节点
     node._svgElement = this.draw.foreignObject(100, 50).move(childX, childY);
     node._svgElement.node.innerHTML = `<div style="
