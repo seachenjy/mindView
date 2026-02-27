@@ -34,6 +34,7 @@ export class MindMap {
     this.renderNode(this.root, centerX, centerY);
   }
 
+  
   /**
    * 递归遍历每个节点的子节点
    * @param node 节点
