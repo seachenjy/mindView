@@ -40,32 +40,92 @@ export class MindMap {
    * @param node 节点
    * @param parentX 父节点的x坐标
    * @param parentY 父节点的y坐标
+   * @param parentNode 父节点对象
+   * @param siblingIndex 兄弟节点索引
    */
-  renderNode(node: MindMapNode, parentX: number, parentY: number) {
-    // 计算子节点的位置
-    const childX = parentX + 150;
-    const childY = parentY;
-    // 绘制子节点
-    node._svgElement = this.draw.foreignObject(100, 50).move(childX, childY);
+  renderNode(node: MindMapNode, parentX: number, parentY: number, parentNode?: MindMapNode, siblingIndex?: number) {
+    // 绘制当前节点
+    node._svgElement = this.draw.foreignObject(100, 50).move(parentX, parentY);
+    const _dom = document.createElement('div');
+    //点击事件
+    node._svgElement.on('click',() => {
+      console.log('click')
+      this.currentNode = node;
+      this.addNode('new node');
+    })
+    let backgroundColor = node.style?.backgroundColor || defaultStyle.backgroundColor;
+    if(this.currentNode == node) {
+      backgroundColor = '#fc0';
+      node._svgElement.node.innerHTML = _dom.innerHTML
+    }
     node._svgElement.node.innerHTML = `<div style="
     width: 100px; 
     height: 50px; 
     padding: ${node.style?.padding || defaultStyle.padding}px;
-    background-color: ${node.style?.backgroundColor || defaultStyle.backgroundColor}; 
+    background-color: ${backgroundColor}; 
     color: ${node.style?.color || defaultStyle.color}; 
     font-size: ${node.style?.fontSize || defaultStyle.fontSize}px; 
     font-weight: ${node.style?.fontWeight || defaultStyle.fontWeight}; 
     line-height: ${node.style?.lineHeight || defaultStyle.lineHeight};
     ">${node.text}</div>`;
-    // 递归遍历每个子节点的子节点
-    node.children.forEach((child) => {
-      this.renderNode(child, childX, childY);
-    });
+
+    
+    // 计算子节点的位置
+    if (node.children.length > 0) {
+      const childX = parentX + 150; // 子节点在父节点右侧150px
+      const nodeHeight = 60; // 每个节点高度50px，间距10px
+      
+      // 计算子节点的起始Y坐标
+      // 从父节点中心开始垂直排列
+      let startY = parentY - (node.children.length * nodeHeight) / 2 + nodeHeight / 2;
+      
+      // 考虑父节点的兄弟节点，调整子节点的垂直位置
+      if (parentNode && siblingIndex !== undefined) {
+        // 计算前面兄弟节点的总高度
+        let previousSiblingsHeight = 0;
+        for (let i = 0; i < siblingIndex; i++) {
+          const sibling = parentNode.children[i];
+          // 计算兄弟节点的子节点数量
+          const siblingChildCount = this.getNodeCount(sibling);
+          // 每个子节点占用60px高度
+          previousSiblingsHeight += Math.max(1, siblingChildCount) * nodeHeight;
+        }
+        
+        // 调整起始Y坐标，避免与前面兄弟节点的子节点重叠
+        startY += previousSiblingsHeight;
+      }
+      
+      // 递归遍历每个子节点的子节点
+      node.children.forEach((child, index) => {
+        const childY = startY + index * nodeHeight; // 每个子节点垂直间距60px
+        this.renderNode(child, childX, childY, node, index);
+        
+        // 绘制连接线
+        this.draw.line(parentX + 100, parentY + 25, childX, childY + 25)
+          .stroke({ width: 2, color: '#999' });
+      });
+    }
+  }
+
+  /**
+   * 获取节点的子节点数量（包括所有层级）
+   * @param node 节点
+   * @returns 子节点数量
+   */
+  getNodeCount(node: MindMapNode): number {
+    let count = 0;
+    if (node.children) {
+      count = node.children.length;
+      node.children.forEach(child => {
+        count += this.getNodeCount(child);
+      });
+    }
+    return count;
   }
 
   /**
    * 添加节点
-   * @param node 节点
+   * @param text 节点文本
    */
   addNode(text:string) {
     this.currentNode.children.push({
@@ -73,11 +133,20 @@ export class MindMap {
       text,
       children: [],
     });
-    // 计算当前节点的位置
-    const parentX = this.currentNode._svgElement?.x() as number || 0;
-    const parentY = this.currentNode._svgElement?.y() as number || 0;
-    const lastIndex = this.currentNode.children.length - 1;
-    this.renderNode(this.currentNode.children[lastIndex], parentX, parentY);
+    // 重新渲染整个脑图，以保持布局的正确性
+    this.redraw();
+  }
+
+  /**
+   * 重新绘制整个脑图
+   */
+  redraw() {
+    // 清空当前的绘制内容
+    this.draw.clear();
+    // 重新计算中心位置并渲染根节点
+    const centerX = (this._selector.clientWidth) / 2 - 300;
+    const centerY = (this._selector.clientHeight) / 2 - 100;
+    this.renderNode(this.root, centerX, centerY);
   }
 
   /**
