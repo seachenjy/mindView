@@ -36,7 +36,7 @@ export const defaultLineStyle: MindMapLineStyle = {
   width: 1,
   style: LineStyle.Solid,
 };
-
+export const rootNode:Symbol = Symbol('rootNode');
 /** 脑图节点 */
 export interface MindMapNode {
   /** 节点ID */
@@ -49,39 +49,16 @@ export interface MindMapNode {
   style?: MindMapNodeStyle;
   /** 连线样式 */
   lineStyle?: MindMapLineStyle;
+  /** 父节点 */
+  parent: MindMapNode|Symbol;
   /** dom元素 */
   _svgElement?: ForeignObject;
 }
 
-/**node节点的svg矩形呈现 */
-export function createNodeSvgElement(draw: Svg,node: MindMapNode): Svg {
-  const { text, style, lineStyle } = node;
-  const { backgroundColor, color, fontSize, fontWeight, lineHeight, padding } = style || defaultStyle;
-  const { color: lineColor, width: lineWidth, style: lineStyleEnum } = lineStyle || defaultLineStyle;
-
-  // 创建矩形元素
-  const rect = draw.rect().attr({
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 50,
-    fill: backgroundColor,
-    stroke: lineColor,
-    'stroke-width': lineWidth,
-    'stroke-dasharray': lineStyleEnum === LineStyle.Dashed ? '5,5' : lineStyleEnum === LineStyle.Dotted ? '1,1' : undefined,
-  });
-  // 创建文本元素
-  const textElement = draw.text(text).attr({
-    x: padding,
-    y: padding + fontSize,
-    fill: color,
-    'font-size': fontSize,
-    'font-weight': fontWeight,
-    'line-height': lineHeight,
-  });
-  // 设置文本元素的位置
-  textElement.move(padding, padding + fontSize);
-  // 返回svg元素
-  return draw;
-
+/** 所有节点的边界框 */
+export interface allNodeBound {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
 }

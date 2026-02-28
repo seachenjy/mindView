@@ -1,16 +1,16 @@
-import { MindMapNode, defaultStyle } from './MindMapNode';
-import { ref,reactive,effect } from 'vue';
-import {SVG,Svg} from '@svgdotjs/svg.js';
+import { MindMapNode, defaultStyle, allNodeBound, rootNode } from './MindMapNode';
+import {SVG,Svg,Box} from '@svgdotjs/svg.js';
+
 
 export class MindMap {
   /** svg */
   draw: Svg;
 
   /** 根节点 */
-  root: MindMapNode;
+  root: MindMapNode|null = null;
 
   /** 当前节点 */
-  currentNode: MindMapNode;
+  currentNode: MindMapNode|null = null;
 
   _id:number = 1;
 
@@ -18,20 +18,37 @@ export class MindMap {
   _selector: HTMLElement;
 
   constructor(selector: HTMLElement) {
-    this.root = {
-      id: (this._id++).toString(),
-      text: 'Root Node',
-      children: [],
-    };
     // 初始化dom容器
     this._selector = selector;
-    this.currentNode = reactive(this.root);
     this.draw = SVG().size(selector.clientWidth, selector.clientHeight).addTo(selector);
-    // 计算中心位置放置root节点
-    const centerX = (this._selector.clientWidth) / 2  - 300;
-    const centerY = (this._selector.clientHeight) / 2 - 100;
-    // 递归遍历每个节点的子节点
-    this.renderNode(this.root, centerX, centerY);
+  }
+
+  getBoundingBox():Box {
+    return this.draw.bbox();
+  }
+
+  //递归获得当前节点下所有子节点的边界框,返回最大的边界框
+  getChildrenBound(node: MindMapNode):allNodeBound {
+    let bounds:allNodeBound = {
+      minX: Number.MAX_VALUE,
+      minY: Number.MAX_VALUE,
+      maxX: Number.MIN_VALUE,
+      maxY: Number.MIN_VALUE,
+    };
+    node.children.forEach(child => {
+      const box = child._svgElement?.bbox();
+      bounds.minX = Math.min(bounds.minX, box?.x || 0);
+      bounds.minY = Math.min(bounds.minY, box?.y || 0);
+      bounds.maxX = Math.max(bounds.maxX, box?.x || 0);
+      bounds.maxY = Math.max(bounds.maxY, box?.y || 0);
+      const childBounds = this.getChildrenBound(child);
+      bounds.minX = Math.min(bounds.minX, childBounds.minX);
+      bounds.minY = Math.min(bounds.minY, childBounds.minY);
+      bounds.maxX = Math.max(bounds.maxX, childBounds.maxX);
+      bounds.maxY = Math.max(bounds.maxY, childBounds.maxY);
+    })
+    
+    return bounds;
   }
 
   
@@ -128,25 +145,22 @@ export class MindMap {
    * @param text 节点文本
    */
   addNode(text:string) {
-    this.currentNode.children.push({
-      id: (this._id++).toString(),
-      text,
-      children: [],
-    });
-    // 重新渲染整个脑图，以保持布局的正确性
-    this.redraw();
-  }
-
-  /**
-   * 重新绘制整个脑图
-   */
-  redraw() {
-    // 清空当前的绘制内容
-    this.draw.clear();
-    // 重新计算中心位置并渲染根节点
-    const centerX = (this._selector.clientWidth) / 2 - 300;
-    const centerY = (this._selector.clientHeight) / 2 - 100;
-    this.renderNode(this.root, centerX, centerY);
+    if(!this.currentNode) {
+      this.currentNode = this.root = {
+        id: (this._id++).toString(),
+        text,
+        children: [],
+        parent: rootNode,
+      };
+      this.renderNode(this.root, 300, 100);
+    }else{
+      this.currentNode.children.push({
+        id: (this._id++).toString(),
+        text,
+        children: [],
+        parent: this.currentNode,
+      });
+    }
   }
 
   /**
@@ -154,7 +168,6 @@ export class MindMap {
    * @returns json字符串
    */
   toJson() {
-
     return JSON.stringify(this.root,(key, value) => {
       if (/^_/.test(key)) {
         return undefined   // 返回 undefined 会被忽略
